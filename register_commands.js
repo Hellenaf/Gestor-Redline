@@ -1,8 +1,7 @@
 require('dotenv').config();
 const { Client, REST, Routes, GatewayIntentBits } = require('discord.js');
 
-// --- CONFIGURAÇÕES ---
-const GUILD_ID = process.env.GUILD_ID || '1252997988909973565'; // Servidor Principal (Hierarquia)
+const GUILD_ID = process.env.GUILD_ID || '1252997988909973565'; 
 const TOKEN = process.env.DISCORD_TOKEN;
 
 if (!TOKEN) {
@@ -17,7 +16,6 @@ if (!GUILD_ID) {
     process.exit(1);
 }
 
-// Lista de comandos para registrar
 const commands = [
     {
         name: 'atualizar',
@@ -42,25 +40,25 @@ const commands = [
             {
                 name: 'usuario',
                 description: 'Usuário do Discord',
-                type: 6, // USER
+                type: 6, 
                 required: true,
             },
             {
                 name: 'kits',
                 description: 'Quantidade de Kits',
-                type: 4, // INTEGER
+                type: 4, 
                 required: true,
             },
             {
                 name: 'horas',
                 description: 'Horas trabalhadas (Opcional)',
-                type: 10, // NUMBER
+                type: 10, 
                 required: false,
             },
             {
                 name: 'id_cidade',
                 description: 'ID na Cidade (Opcional)',
-                type: 4, // INTEGER
+                type: 4, 
                 required: false,
             }
         ]
@@ -72,13 +70,13 @@ const commands = [
             {
                 name: 'usuario',
                 description: 'Usuário do Discord',
-                type: 6, // USER
+                type: 6, 
                 required: true,
             },
             {
                 name: 'kits',
                 description: 'Quantidade de Kits a REMOVER',
-                type: 4, // INTEGER
+                type: 4, 
                 required: true,
             }
         ]
@@ -90,7 +88,7 @@ const commands = [
             {
                 name: 'total',
                 description: 'Total de kits disponíveis no baú',
-                type: 4, // INTEGER
+                type: 4, 
                 required: true,
             }
         ]
@@ -105,7 +103,6 @@ const commands = [
     },
 ];
 
-// Cliente auxiliar apenas para pegar o ID do Bot
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 console.log('⏳ Iniciando Script de Registro de Comandos...');
@@ -120,7 +117,6 @@ client.once('ready', async () => {
 
         console.log(`⚙️  Registrando ${commands.length} comandos no servidor ${GUILD_ID}...`);
 
-        // Registra os comandos (sobrescreve os antigos)
         await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
             { body: commands },

@@ -6,44 +6,31 @@ const { initializeApp } = require('firebase/app');
 const { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, deleteDoc, getDocs } = require('firebase/firestore');
 const { getAuth, signInAnonymously } = require('firebase/auth');
 
-// IDs autorizados a enviar relatórios manualmente (Donos/Admins)
-// IDs autorizados removidos a pedido do usuário (gestão via Discord)
-// const OWNERS = ['352145423181414401', '354741432113823746', '395393325772963851'];
-
-// --- CONFIGURAÇÃO ---
 const CONFIG = {
     TOKEN: process.env.DISCORD_TOKEN,
-    CHANNEL_ID: process.env.CHANNEL_ID || '1253003446244610108',       // Canal do Painel
-    MESSAGE_ID: process.env.MESSAGE_ID || '1467192047231566049',       // ID da mensagem fixa
-    BASE_ROLE_ID: process.env.BASE_ROLE_ID || '1252997989144727719',     // Cargo base
-    REPORT_CHANNEL_ID: process.env.REPORT_CHANNEL_ID || '1238572013707329718',// ID CANAL DE RELATÓRIOS
-    MAIN_GUILD_ID: process.env.GUILD_ID || process.env.MAIN_GUILD_ID || '1252997988909973565', // Servidor REDLINE (Hierarquia)
+    CHANNEL_ID: process.env.CHANNEL_ID || '1253003446244610108',       
+    MESSAGE_ID: process.env.MESSAGE_ID || '1467192047231566049',       
+    BASE_ROLE_ID: process.env.BASE_ROLE_ID || '1252997989144727719',     
+    REPORT_CHANNEL_ID: process.env.REPORT_CHANNEL_ID || '1238572013707329718',
+    MAIN_GUILD_ID: process.env.GUILD_ID || process.env.MAIN_GUILD_ID || '1252997988909973565', 
 
-    // Novos Canais para Automação de Pontos
     RECRUIT_CHANNEL_ID: process.env.RECRUIT_CHANNEL_ID || '1257816172154458253',
     SPONSOR_CHANNEL_ID: process.env.SPONSOR_CHANNEL_ID || '1252997990168395924',
 
-    // Automação Top Horas (15h+)
-    AVISOS_CHANNEL_ID: process.env.AVISOS_CHANNEL_ID || '1252997990491361401',       // ID do Canal de Avisos
-    TOP_HOURS_ROLE_ID: process.env.TOP_HOURS_ROLE_ID || '1252997989170155536',       // ID do Cargo Top Horas
+    AVISOS_CHANNEL_ID: process.env.AVISOS_CHANNEL_ID || '1252997990491361401',       
+    TOP_HOURS_ROLE_ID: process.env.TOP_HOURS_ROLE_ID || '1252997989170155536',       
 
-    // Automação Top Recrutador
-    TOP_RECRUITER_ROLE_ID: process.env.TOP_RECRUITER_ROLE_ID || '1425465043155419156', // ID do Cargo Top Recrutador
+    TOP_RECRUITER_ROLE_ID: process.env.TOP_RECRUITER_ROLE_ID || '1425465043155419156', 
 
-    // Booster
-    BOOSTER_ROLE_ID: process.env.BOOSTER_ROLE_ID || '1253014613428277259',           // ID do Cargo de Booster (Impulsionador)
+    BOOSTER_ROLE_ID: process.env.BOOSTER_ROLE_ID || '1253014613428277259',           
 
-    // Canal de Log de Vendas (Tempo Real)
-    SALES_LOG_CHANNEL_ID: process.env.SALES_LOG_CHANNEL_ID || '1238572013321322546', // Canal log-vendas
+    SALES_LOG_CHANNEL_ID: process.env.SALES_LOG_CHANNEL_ID || '1238572013321322546', 
 
-    // ID para Logs via DM
-    ADMIN_LOG_ID: process.env.ADMIN_LOG_ID || '943628403528056923',                  // ID do Dono para receber logs no PV
+    ADMIN_LOG_ID: process.env.ADMIN_LOG_ID || '943628403528056923',                  
 
-    // Membros desconsiderados na hierarquia
     IGNORED_USERS: process.env.IGNORED_USERS ? process.env.IGNORED_USERS.split(',') : ['713774125151289385']
 };
 
-// --- CONFIGURAÇÃO FIREBASE ---
 const firebaseConfig = {
     apiKey: process.env.FIREBASE_API_KEY,
     authDomain: `${process.env.FIREBASE_PROJECT_ID}.firebaseapp.com`,
@@ -53,12 +40,10 @@ const firebaseConfig = {
     appId: process.env.FIREBASE_APP_ID
 };
 
-// Inicializa Firebase
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 
-// Autentica o Bot no Firebase (Anônimo)
 signInAnonymously(auth).then(() => {
     console.log("🔥 [FIREBASE] Bot conectado ao banco de dados!");
 }).catch((error) => {
@@ -69,7 +54,7 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,      // NECESSÁRIO para receber eventos de mensagens em canais
+        GatewayIntentBits.GuildMessages,      
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.DirectMessages
     ],
@@ -135,7 +120,6 @@ const HIERARQUIA = [
     }
 ];
 
-// --- FUNÇÃO HELPER: ENVIAR LOG NA DM ---
 async function sendLogDm(content) {
     if (!CONFIG.ADMIN_LOG_ID) return;
     try {
@@ -146,8 +130,6 @@ async function sendLogDm(content) {
     }
 }
 
-// --- FUNÇÃO: ATUALIZAR PAINEL (HIERARQUIA) ---
-// Executada SOMENTE no Servidor Principal
 async function atualizarPainel(guild) {
     console.log(`--- [PROCESSANDO] Atualização do painel HIERARQUIA em ${guild.name}... ---`);
     try {
@@ -162,7 +144,7 @@ async function atualizarPainel(guild) {
             let listaMembros = [];
 
             if (role) {
-                // Filtra apenas membros que têm o cargo E o cargo base (ignora membros da lista IGNORED_USERS)
+                
                 listaMembros = role.members
                     .filter(m => !(CONFIG.IGNORED_USERS || []).includes(m.id))
                     .filter(m => m.roles.cache.has(CONFIG.BASE_ROLE_ID) || item.nome === 'Dono')
@@ -183,17 +165,13 @@ async function atualizarPainel(guild) {
             listaMembros = listaMembros.filter(m => !jaListados.has(m));
             listaMembros.forEach(m => jaListados.add(m));
 
-
-            // Cabeçalho do Cargo
             textoFinal += `${item.emoji} **${item.nome}** (${listaMembros.length})\n`;
 
-            if (listaMembros.length > 0) textoFinal += listaMembros.map(m => `・${m}`).join('\n'); // Sem quote >
+            if (listaMembros.length > 0) textoFinal += listaMembros.map(m => `・${m}`).join('\n'); 
             else textoFinal += '・Nenhum membro\n';
 
-            // Espaçamento DUPLO entre cargos
             textoFinal += '\n\n';
         }
-
 
         const data = new Date().toLocaleDateString('pt-BR');
         const hora = new Date().toLocaleTimeString('pt-BR');
@@ -220,7 +198,6 @@ async function atualizarPainel(guild) {
             console.log('✅ [SUCESSO] Nova mensagem de painel enviada.');
         }
 
-        // --- SINCRONIZAÇÃO COM O SITE (Firebase) ---
         try {
             const donosList = [];
             const donoConfig = HIERARQUIA.find(h => h.nome === 'Dono');
@@ -236,7 +213,7 @@ async function atualizarPainel(guild) {
                 if (Array.isArray(donoConfig.manualTop)) {
                     donoConfig.manualTop.forEach(id => {
                         if (!(CONFIG.IGNORED_USERS || []).includes(String(id)) && !donosList.find(d => d.id === String(id))) {
-                            // Tenta pegar do cache se existir
+                            
                             const m = guild.members.cache.get(String(id));
                             const fallbackName = String(id) === '354741432113823746' ? 'Jadson' : 'Dono';
                             donosList.push({ id: String(id), name: m ? (m.displayName || m.user.username) : fallbackName });
@@ -258,34 +235,23 @@ async function atualizarPainel(guild) {
     }
 }
 
-// ============================================
-// LÓGICA DE PROCESSAMENTO DE RELATÓRIOS
-// ============================================
-
 let reportDebounceTimer = null;
-const processingFiles = new Set(); // ANTI-DUPLICAÇÃO: Armazena URLs em processamento
+const processingFiles = new Set(); 
 
 client.on('messageCreate', async (message) => {
-    // 1. Lógica Automática (Canais de Relatório Excel)
+    
     if (message.channel.id === CONFIG.REPORT_CHANNEL_ID) {
-        if (message.author.bot) return; // FIX: Ignora mensagens do próprio bot (Feedback) para não entrar em loop
-        // Quando uma mensagem chega no canal de relatórios...
+        if (message.author.bot) return; 
+        
         clearTimeout(reportDebounceTimer);
         console.log(`📊 [AUTO] Arquivo detectado no canal de relatórios! Aguardando lote completo (15s)...`);
-        // Espera 15 segundos para garantir que o "lote" de TODOS os arquivos chegue
+        
         reportDebounceTimer = setTimeout(() => processarLoteRelatorios(message.channel), 15000);
         return;
     }
 
-    // 2. Lógica Automática (Log de Vendas em Tempo Real)
     if (message.channel.id === CONFIG.SALES_LOG_CHANNEL_ID) {
-        // PERMITIR BOTS NESTE CANAL! (Pois o log vem de outro bot)
-        // if (message.author.bot) return; <--- REMOVIDO
 
-        // Se a mensagem for de webhook ou bot, processa igual.
-
-        /* ... trecho de debug removido para produção ou mantido se quiser ... */
-        // Debug Simplificado:
         if (message.content.includes(':check~2:') || message.content.includes('✅')) {
             console.log("📝 [LOG VENDAS] Mensagem de BOT/Webhook detectada e verificada.");
             await processarLogVendas(message);
@@ -293,20 +259,13 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.author.bot) return; // Ignora bots em todos os OUTROS canais
+    if (message.author.bot) return; 
 
-    // 2. Lógica Manual (DM ou Canal Admin) e Slash Commands
     if (message.attachments.size > 0) {
         const file = message.attachments.first();
         if (file.name.endsWith('.xlsx')) {
-            // Removida verificação hardcoded de OWNERS/Cargos.
-            // O controle de quem pode enviar deve ser feito pelas permissões do CANAL onde o bot lê.
-            // Se o bot lê DMs, qualquer um pode enviar na DM, mas para canais de guilda, usa permissão do canal.
 
-            // Para comandos de barra, a gestão é via Integração do Discord.
-            // Para upload manual, assumimos que quem tem permissão de mandar msg no canal onde o bot está lendo é autorizado.
-
-            if (message.guild || message.channel.type === 1) { // 1 = DM
+            if (message.guild || message.channel.type === 1) { 
                 await processarExcel(message, file.url);
             }
         }
@@ -316,7 +275,7 @@ client.on('messageCreate', async (message) => {
 async function processarLoteRelatorios(channel) {
     console.log('--- [AUTO] Buscando maior relatório do lote recente... ---');
     try {
-        // Pega as últimas 20 mensagens
+        
         const messages = await channel.messages.fetch({ limit: 20 });
 
         let bestFile = null;
@@ -326,9 +285,6 @@ async function processarLoteRelatorios(channel) {
         let firstFile = null;
         let oldestTimestamp = now;
 
-        // NOVA TRAVA DE SEGURANÇA (BATCH LOCK):
-        // Se QUALQUER mensagem recente (< 5 min) já tiver um ✅, significa que o lote já foi atendido.
-        // Isso impede que ele pule o arquivo 1 (já feito) e tente processar o arquivo 2, 3, etc.
         const jaProcessadoRecente = messages.some(msg => {
             const isRecent = (now - msg.createdTimestamp <= 300000);
             const hasCheck = msg.reactions.cache.has('✅');
@@ -342,12 +298,12 @@ async function processarLoteRelatorios(channel) {
         }
 
         messages.forEach(msg => {
-            // Ignora mensagens antigas (> 5 min)
+            
             if (now - msg.createdTimestamp > 300000) return;
 
             msg.attachments.forEach(att => {
                 if (att.name.endsWith('.xlsx')) {
-                    // Critério: PRIMEIRO ARQUIVO (mais antigo)
+                    
                     if (msg.createdTimestamp < oldestTimestamp) {
                         oldestTimestamp = msg.createdTimestamp;
                         firstFile = { attachment: att, message: msg };
@@ -359,9 +315,8 @@ async function processarLoteRelatorios(channel) {
         if (firstFile) {
             console.log(`✅ [AUTO] Primeiro: ${firstFile.attachment.name} (${(firstFile.attachment.size / 1024).toFixed(2)} KB)`);
             sendLogDm(`📊 **[Processamento Iniciado]**\nArquivo: \`${firstFile.attachment.name}\`\nTamanho: ${(firstFile.attachment.size / 1024).toFixed(2)} KB`);
-            await processarExcelUrl(firstFile.attachment.url, channel, true); // isAutomatic = true
+            await processarExcelUrl(firstFile.attachment.url, channel, true); 
 
-            // Reage com ✅ no primeiro relatório para feedback visual
             try {
                 await firstFile.message.react('✅');
                 console.log(`✅ [AUTO] Reação adicionada ao relatório processado.`);
@@ -383,12 +338,11 @@ async function processarExcelUrl(url, channel, isAutomatic = false) {
         return;
     }
     processingFiles.add(url);
-    // Remove da lista após 60s
-    // Remove da lista após 5 minutos (Era 60s, aumentado para evitar reprocessamento se o user digitar algo)
+
     setTimeout(() => processingFiles.delete(url), 300000);
 
     let feedbackMsg = null;
-    // Tenta enviar mensagem de feedback (pode falhar se o bot não tiver permissão de falar no canal)
+    
     try {
         if (channel) feedbackMsg = await channel.send('🔄 **[Sincronização] Processando relatório...**');
     } catch (e) { }
@@ -399,31 +353,27 @@ async function processarExcelUrl(url, channel, isAutomatic = false) {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
 
-        // Converte para JSON Arrays (header: 1 garante que pegue tudo linha a linha)
         const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
 
         if (!rows || rows.length === 0) throw new Error("Planilha vazia.");
 
-        // Remove a primeira linha (Cabeçalho: "Discord", "ID"...) para evitar NaN no site
         if (rows.length > 0) rows.shift();
 
         const filteredRows = rows.map(row => {
-            // Se row for vazio ou curto, retorna como está (segurança)
+            
             if (!row || row.length < 5) return null;
 
             return [
-                row[0], // Discord
-                row[1], // ID
-                row[2], // ID FiveM
-                row[3], // Horas
-                row[4], // Kits
-                // Tenta achar Data na Coluna H (7) ou F (5) se a planilha mudou
-                (row[7] || (row[5] && String(row[5]).includes('/') ? row[5] : 'N/A'))  // Promoção
+                row[0], 
+                row[1], 
+                row[2], 
+                row[3], 
+                row[4], 
+                
+                (row[7] || (row[5] && String(row[5]).includes('/') ? row[5] : 'N/A'))  
             ];
         }).filter(r => r !== null);
 
-
-        // --- LÓGICA DE MERGE (Consolidar Histórico) ---
         const appId = 'default-app-id';
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
 
@@ -433,7 +383,6 @@ async function processarExcelUrl(url, channel, isAutomatic = false) {
 
         const consolidatedMap = new Map();
 
-        // 1. Carrega dados ANTIGOS
         if (oldRawData) {
             const oldLines = oldRawData.split('\n');
             for (const line of oldLines) {
@@ -445,65 +394,52 @@ async function processarExcelUrl(url, channel, isAutomatic = false) {
             }
         }
 
-        // 2. Mescla com NOVOS
         const currentIds = new Set();
 
         for (const newRow of filteredRows) {
             const id = String(newRow[1]);
             currentIds.add(id);
 
-            // newRow: [Discord(0), ID(1), FiveM(2), Horas(3), Kits(4), ..., Promo(7)]
-            // CONSTROI DADOS PADRONIZADOS (Ignora colunas extras como Lucro/Imposto do Excel)
-            // Ordem: [Nome, DiscordID, FiveM, Horas, Kits, Promoção]
             const cleanRow = [
-                String(newRow[0] ?? ''), // 0: Nome
-                String(newRow[1] ?? ''), // 1: Discord ID
-                String(newRow[2] ?? ''), // 2: FiveM
-                String(newRow[3] ?? ''), // 3: Horas
-                '0',                     // 4: Kits (Padrão 0, garante prioridade ao Log)
-                String(newRow[5] ?? '')  // 5: Promoção (Já mapeado para índice 5 no filteredRows)
+                String(newRow[0] ?? ''), 
+                String(newRow[1] ?? ''), 
+                String(newRow[2] ?? ''), 
+                String(newRow[3] ?? ''), 
+                '0',                     
+                String(newRow[5] ?? '')  
             ];
 
-            // LÓGICA HÍBRIDA: RECUPERAR KITS DO LOG
             const existingRecord = consolidatedMap.get(id);
             if (existingRecord && existingRecord.length >= 5) {
-                // Se já tem histórico no banco, PRESERVA contagem real-time
+                
                 cleanRow[4] = existingRecord[4];
             }
 
             consolidatedMap.set(id, cleanRow);
         }
 
-        // 3. Verifica Exonerados (Estavam no Banco, mas não vieram no Excel)
-        // Marca como (Exonerado) e ZERA as horas para não contar na meta de horas, mantendo os Kits.
         for (const [id, row] of consolidatedMap) {
             if (!currentIds.has(id)) {
-                // row: [Nome, ID, FiveM, Horas, Kits, ..., Promo]
-                // Preserva Kits (idx 4), Zera Horas (idx 3)
 
-                // Adiciona tag no nome se não tiver
                 if (!row[0].includes('(Exonerado)')) {
                     row[0] = `${row[0]} (Exonerado)`;
                 }
 
-                // Zera horas
                 row[3] = '0';
 
                 consolidatedMap.set(id, row);
             }
         }
 
-        // 4. Gera novo RawData
         const finalRows = Array.from(consolidatedMap.values());
         const rawText = finalRows.map(row => row.join('\t')).join('\n');
 
-        // --- AÇÃO: PREMIAÇÃO AUTO (TOP HORAS) ---
         if (isAutomatic) {
             const targetGuild = await client.guilds.fetch(CONFIG.MAIN_GUILD_ID);
 
             if (targetGuild) {
                 console.log(`🎯 [TOP HORAS] Processando no servidor: ${targetGuild.name}`);
-                // Usa filteredRows (apenas os presentes no relatório atual) para lógica de Top Horas
+                
                 gerenciarTopHoras(targetGuild, filteredRows).catch(e => console.error("❌ [TOP HORAS] Erro:", e));
             } else {
                 console.error("❌ [TOP HORAS] Servidor principal não encontrado.");
@@ -512,7 +448,6 @@ async function processarExcelUrl(url, channel, isAutomatic = false) {
             console.log("ℹ️ [TOP HORAS] Processamento manual detectado. Anúncio não será enviado.");
         }
 
-        // Salva
         await setDoc(docRef, {
             ...currentData,
             rawData: rawText,
@@ -530,11 +465,6 @@ async function processarExcelUrl(url, channel, isAutomatic = false) {
     }
 }
 
-
-
-// ============================================
-// FUNÇÃO: GERENCIAR TOP RECRUTADOR
-// ============================================
 async function gerenciarTopRecrutador(guild, pontos) {
     if (CONFIG.TOP_RECRUITER_ROLE_ID === 'CHANGE_ME') {
         console.warn("⚠️ [TOP RECRUTADOR] ID do Cargo não configurado.");
@@ -549,21 +479,16 @@ async function gerenciarTopRecrutador(guild, pontos) {
 
     console.log("🏆 [TOP RECRUTADOR] Calculando vencedor...");
 
-    // 1. Encontrar o maior número de recrutamentos
     let maxRecruits = 0;
     for (const data of Object.values(pontos)) {
         if (data.recruit > maxRecruits) maxRecruits = data.recruit;
     }
 
-    // Se ninguém recrutou nada (0), ninguém ganha
     if (maxRecruits === 0) {
         console.log("🏆 [TOP RECRUTADOR] Sem recrutamentos esta semana.");
-        // Opcional: Remover cargo de todos?
-        // Vamos manter a lógica padrão: limpa quem não é vencedor.
-        // Se max=0, winners=[] -> remove de todo mundo.
+
     }
 
-    // 2. Identificar quem tem esse número
     const winners = [];
     if (maxRecruits > 0) {
         for (const [id, data] of Object.entries(pontos)) {
@@ -575,11 +500,8 @@ async function gerenciarTopRecrutador(guild, pontos) {
 
     console.log(`🏆 [TOP RECRUTADOR] Vencedores (${maxRecruits} recruts): ${winners.join(', ')}`);
 
-    // 3. Atualizar Cargos
-    // await guild.members.fetch(); // REMOVIDO PARA EVITAR RATE LIMIT
     const membersWithRole = role.members.map(m => m.id);
 
-    // A) Remover de quem não é vencedor
     for (const memberId of membersWithRole) {
         if (!winners.includes(memberId)) {
             const member = guild.members.cache.get(memberId);
@@ -587,7 +509,6 @@ async function gerenciarTopRecrutador(guild, pontos) {
         }
     }
 
-    // B) Adicionar aos vencedores
     for (const winnerId of winners) {
         if (!membersWithRole.includes(winnerId)) {
             const member = guild.members.cache.get(winnerId);
@@ -596,9 +517,6 @@ async function gerenciarTopRecrutador(guild, pontos) {
     }
 }
 
-// ============================================
-// FUNÇÃO: GERENCIAR TOP HORAS (15h+)
-// ============================================
 async function gerenciarTopHoras(guild, rows) {
     if (CONFIG.AVISOS_CHANNEL_ID === 'CHANGE_ME' || CONFIG.TOP_HOURS_ROLE_ID === 'CHANGE_ME') {
         console.warn("⚠️ [TOP HORAS] IDs de Canal ou Cargo não configurados no CONFIG.");
@@ -622,29 +540,21 @@ async function gerenciarTopHoras(guild, rows) {
         return;
     }
 
-    const winnersData = []; // { id, hours }
+    const winnersData = []; 
     const minHours = 15;
 
-    // 1. Identificar Quem Bateu a Meta
     for (const row of rows) {
-        // row: [DiscordID, InGameID, FiveMID, Horas, ...]
+        
         if (!row || row.length < 4) continue;
 
-        const discordId = row[1]; // Discord ID na col 1 (Nome está na 0)
-        const rawTime = row[3];   // Horas
-
-        // DEBUG: Ver o que está chegando
-        // console.log(`[DEBUG TOP HORAS] ID: ${discordId}, RawTime: ${rawTime} (${typeof rawTime})`);
+        const discordId = row[1]; 
+        const rawTime = row[3];   
 
         let hoursValue = 0;
 
         if (typeof rawTime === 'number') {
-            // Excel Time format: 1.0 = 24h. 
-            // Se for menor que 1 e maior que 0, provavelmente é fração de dia (ex: 0.625 = 15h)
-            // Se for > 24, provavelmente já são horas inteiras (ex: 45) ou minutos? 
-            // Assumimos que se for < 10 é fração de dia, se for > 10 é horas.
-            // Ajuste fino pode ser necessário.
-            if (rawTime < 5) { // Assumindo que ninguém fez 5 dias seguidos (120h) sem parar, < 5 é safe p/ fração
+
+            if (rawTime < 5) { 
                 hoursValue = rawTime * 24;
             } else {
                 hoursValue = rawTime;
@@ -652,10 +562,8 @@ async function gerenciarTopHoras(guild, rows) {
         } else if (typeof rawTime === 'string') {
             const timeStr = rawTime.trim().toLowerCase();
 
-            // NOVO: Trata formato extenso "5 horas, 15 minutos e 2 segundos"
             if (timeStr.includes('hora')) {
-                // Regex para capturar horas e minutos
-                // Ex: "5 horas, 15 minutos..." -> match[1]=5, match[2]=15
+
                 const horasMatch = timeStr.match(/(\d+)\s*hora/);
                 const minMatch = timeStr.match(/(\d+)\s*minuto/);
 
@@ -664,35 +572,30 @@ async function gerenciarTopHoras(guild, rows) {
 
                 hoursValue = h + (m / 60);
             }
-            // Trata "15:30", "15:30:00"
+            
             else if (timeStr.includes(':')) {
                 const parts = timeStr.split(':');
                 const h = parseInt(parts[0]) || 0;
                 const m = parseInt(parts[1]) || 0;
                 hoursValue = h + (m / 60);
             } else {
-                // Trata "15", "15,5"
+                
                 hoursValue = parseFloat(timeStr.replace(',', '.'));
             }
         }
-
-        // console.log(`   -> Valor Convertido: ${hoursValue.toFixed(2)}h`);
 
         if (hoursValue >= minHours) {
             console.log(`   -> 🎯 BATEU META: ${discordId} com ${hoursValue.toFixed(2)}h`);
             winnersData.push({ id: discordId, hours: hoursValue });
         } else {
-            // console.log(`   -> ❌ Não bateu: ${discordId} (${hoursValue.toFixed(2)}h)`);
+            
         }
     }
 
     console.log(`🏆 [TOP HORAS] ${winnersData.length} membros bateram a meta de ${minHours} horas.`);
 
-    // 2. Atualizar Cargos (Adicionar/Remover)
-    // await guild.members.fetch(); // REMOVIDO PARA EVITAR RATE LIMIT (Opcode 8 Error)
     const membersWithRole = role.members.map(m => m.id);
 
-    // A) Remover de quem não está mais na lista
     const winnersIds = winnersData.map(w => w.id);
     for (const memberId of membersWithRole) {
         if (!winnersIds.includes(memberId)) {
@@ -705,8 +608,6 @@ async function gerenciarTopHoras(guild, rows) {
         }
     }
 
-    // B) Adicionar para os novos vencedores e Montar Lista
-    // Ordenar DECRESCENTE (Do maior para o menor: 26h, 23h, 15h...)
     winnersData.sort((a, b) => b.hours - a.hours);
 
     const listLines = [];
@@ -720,7 +621,7 @@ async function gerenciarTopHoras(guild, rows) {
                     member = await guild.members.fetch(w.id);
                 } catch (fetchErr) {
                     console.error(`❌ [TOP HORAS] Membro ${w.id} não encontrado no servidor.`);
-                    continue; // Pula se realmente não achar
+                    continue; 
                 }
             }
 
@@ -729,7 +630,7 @@ async function gerenciarTopHoras(guild, rows) {
                     await member.roles.add(role);
                 }
                 const hoursFormatted = Math.floor(w.hours) + "h " + Math.round((w.hours % 1) * 60) + "m";
-                // Cálculo progressivo: 100 pts base (15h) + 100 pts a cada 5h extras
+                
                 const basePoints = 100;
                 const extraHours = Math.max(0, w.hours - 15);
                 const bonusBlocks = Math.floor(extraHours / 5);
@@ -741,8 +642,6 @@ async function gerenciarTopHoras(guild, rows) {
         }
     }
 
-
-    // 3. Enviar Anúncio Personalizado
     if (listLines.length > 0) {
         const dateHeader = `**<:LOGOREDLINE:1401368764322152518> TOP HORAS DA SEMANA PASSADA <:LOGOREDLINE:1401368764322152518>**`;
 
@@ -762,9 +661,6 @@ Parabéns aos novos <@&${CONFIG.TOP_HOURS_ROLE_ID}> 👏
 
 ${listLines.join('\n')}`;
 
-        // O user pediu "A mensagem tem que ser assim...", com emojis que parecem texto de chat.
-        // Vou enviar como content normal para garantir as menções e emojis.
-
         channel.send({ content: messageContent })
             .then(() => console.log("✅ [TOP HORAS] Anúncio enviado com sucesso!"))
             .catch(err => console.error("❌ [TOP HORAS] ERRO ao enviar msg de top horas:", err));
@@ -773,18 +669,12 @@ ${listLines.join('\n')}`;
     }
 }
 
-// ============================================
-// FUNÇÃO HELPER: EXTRAIR ID DO RECRUTADOR
-// Procurar menção explícita após "recrutador" no Conteúdo ou Embeds
-// ============================================
 function extractRecruiterId(message) {
     const regex = /recrutador\s*<@!?(\d+)>/i;
 
-    // 1. Verifica Conteúdo da Mensagem
     let match = message.content.match(regex);
     if (match) return match[1];
 
-    // 2. Verifica Embeds (Descrição)
     if (message.embeds && message.embeds.length > 0) {
         for (const embed of message.embeds) {
             if (embed.description) {
@@ -793,30 +683,24 @@ function extractRecruiterId(message) {
             }
         }
     }
-    return null; // Nenhum recrutador encontrado seguindo o padrão
+    return null; 
 }
 
-// ============================================
-// FUNÇÃO: CONFIRMAR PREMIAÇÃO TOP RECRUTADOR
-// Pergunta via Botão se deseja dar o cargo
-// ============================================
 async function confirmarTopRecrutador(interaction, guild, pontos) {
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 
-    // 1. Calcula quem seriam os vencedores
     let maxRecruits = 0;
     for (const data of Object.values(pontos)) {
         if (data.recruit > maxRecruits) maxRecruits = data.recruit;
     }
 
-    if (maxRecruits === 0) return; // Ninguém recrutou
+    if (maxRecruits === 0) return; 
 
     const potentialWinners = [];
     for (const [id, data] of Object.entries(pontos)) {
         if (data.recruit === maxRecruits) potentialWinners.push(id);
     }
 
-    // 2. Cria Botões de Confirmação
     const confirmButton = new ButtonBuilder()
         .setCustomId('confirm_top_recruiter')
         .setLabel('Sim')
@@ -829,7 +713,6 @@ async function confirmarTopRecrutador(interaction, guild, pontos) {
 
     const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
 
-    // 3. Envia Mensagem de Pergunta (Só para quem rodou o comando)
     const mentions = potentialWinners.map(id => `<@${id}>`).join(', ');
     const msg = await interaction.followUp({
         content: `🏆 **Top Recrutador Detectado:** ${mentions} com **${maxRecruits}** recrutamentos.\nDeseja atualizar o cargo automaticamente?`,
@@ -837,7 +720,6 @@ async function confirmarTopRecrutador(interaction, guild, pontos) {
         ephemeral: true
     });
 
-    // 4. Coletor de Interação
     const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
 
     collector.on('collect', async i => {
@@ -847,7 +729,7 @@ async function confirmarTopRecrutador(interaction, guild, pontos) {
 
         if (i.customId === 'confirm_top_recruiter') {
             await i.update({ content: '🔄 **Processando Premiação...**', components: [] });
-            await gerenciarTopRecrutador(guild, pontos); // Chama a função real
+            await gerenciarTopRecrutador(guild, pontos); 
             await i.editReply({ content: `✅ **Sucesso!** Cargo atualizado para: ${mentions}`, components: [] });
         } else {
             await i.update({ content: '🚫 **Premiação Cancelada.** O cargo não foi alterado.', components: [] });
@@ -859,13 +741,9 @@ async function confirmarTopRecrutador(interaction, guild, pontos) {
     });
 }
 
-// ============================================
-// LÓGICA DE SINCRONIZAÇÃO DE PONTOS (RECRUTAMENTO/APADRINHAMENTO) - COM EMBEDS
-// ============================================
-
 async function sincronizarPontosNovo(interaction, modo) {
     const salvar = (modo === 'PASSADA');
-    const isEphemeral = (modo === 'ATUAL'); // Só esconde se for semana ATUAL
+    const isEphemeral = (modo === 'ATUAL'); 
 
     await interaction.deferReply({ ephemeral: isEphemeral });
 
@@ -957,7 +835,7 @@ async function sincronizarPontosNovo(interaction, modo) {
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
             const docSnap = await getDoc(docRef);
             let currentData = docSnap.exists() ? docSnap.data() : {};
-            let manualData = {}; // RESET: Sobrescreve dados antigos
+            let manualData = {}; 
 
             for (const [id, dados] of Object.entries(pontos)) {
                 manualData[id] = {
@@ -966,13 +844,12 @@ async function sincronizarPontosNovo(interaction, modo) {
                 };
             }
 
-            // 1. Identificar Boosters SEPARADAMENTE
             let boostersData = {};
             try {
                 if (guild) {
                     const roleBooster = guild.roles.cache.get(CONFIG.BOOSTER_ROLE_ID);
                     if (roleBooster) {
-                        // Salva apenas ID e pontos fixos
+                        
                         roleBooster.members.forEach(m => {
                             boostersData[m.id] = { points: 100 };
                         });
@@ -985,19 +862,16 @@ async function sincronizarPontosNovo(interaction, modo) {
                 console.error("❌ Erro boosters:", e);
             }
 
-            // Salva manualData e boostersData em campos distintos
             await updateDoc(docRef, { manualData, boostersData });
 
-            // --- AÇÃO: PERGUNTAR PREMIAÇÃO TOP RECRUTADOR ---
             if (guild) {
-                // Não executa direto, chama a confirmação
+                
                 confirmarTopRecrutador(interaction, guild, pontos).catch(console.error);
             }
         }
 
         const totalPessoas = Object.keys(pontos).length;
 
-        // Calcular Top Recrutador
         let topRecruiterField = { name: '🏆 Top Recrutador', value: 'N/A', inline: false };
         if (totalPessoas > 0) {
             const recruitRanking = Object.entries(pontos)
@@ -1050,7 +924,7 @@ async function sincronizarPontosNovo(interaction, modo) {
 }
 
 async function sincronizarPontos(msgTrigger, modo) {
-    // modo: 'PASSADA' (Salva no Firebase) | 'ATUAL' (Apenas Visualiza)
+    
     const salvar = (modo === 'PASSADA');
     const titulo = salvar ? 'fechamento da semana passada' : 'verificação da semana atual';
 
@@ -1060,9 +934,9 @@ async function sincronizarPontos(msgTrigger, modo) {
     let startWindow, endWindow;
 
     if (modo === 'PASSADA') {
-        // Semana Anterior Completa (Segunda a Domingo)
+        
         endWindow = new Date(hoje);
-        // Se hoje for domingo, recua 7 dias. Se for segunda, recua 1 dia para pegar o domingo.
+        
         endWindow.setDate(hoje.getDate() - (hoje.getDay() === 0 ? 7 : hoje.getDay()));
         endWindow.setHours(23, 59, 59, 999);
 
@@ -1070,11 +944,11 @@ async function sincronizarPontos(msgTrigger, modo) {
         startWindow.setDate(endWindow.getDate() - 6);
         startWindow.setHours(0, 0, 0, 0);
     } else {
-        // Semana Atual (Segunda até Agora)
-        endWindow = new Date(); // Agora
+        
+        endWindow = new Date(); 
 
         startWindow = new Date(hoje);
-        const currentDay = hoje.getDay() || 7; // 1 (Seg) a 7 (Dom)
+        const currentDay = hoje.getDay() || 7; 
         startWindow.setDate(hoje.getDate() - (currentDay - 1));
         startWindow.setHours(0, 0, 0, 0);
     }
@@ -1090,9 +964,8 @@ async function sincronizarPontos(msgTrigger, modo) {
 
         if (!recruitChannel || !sponsorChannel) throw new Error("Canais de pontos não configurados.");
 
-        const pontos = {}; // { discordId: { recruit: 0, sponsor: 0 } }
+        const pontos = {}; 
 
-        // --- FUNÇÃO HELPER PARA BUSCAR MENSAGENS COM PAGINAÇÃO ---
         async function fetchMessagesInWindow(channel, start, end) {
             let foundMsgs = [];
             let lastId = null;
@@ -1124,7 +997,6 @@ async function sincronizarPontos(msgTrigger, modo) {
             return foundMsgs;
         }
 
-        // 2. Processar Recrutamentos
         const msgsRecruit = await fetchMessagesInWindow(recruitChannel, startWindow, endWindow);
         msgsRecruit.forEach(msg => {
             const recruiterId = extractRecruiterId(msg);
@@ -1134,7 +1006,6 @@ async function sincronizarPontos(msgTrigger, modo) {
             }
         });
 
-        // 3. Processar Apadrinhamentos
         const msgsSponsor = await fetchMessagesInWindow(sponsorChannel, startWindow, endWindow);
         msgsSponsor.forEach(msg => {
             if (msg.author.bot) return;
@@ -1143,7 +1014,6 @@ async function sincronizarPontos(msgTrigger, modo) {
             pontos[autorId].sponsor++;
         });
 
-        // 4. Resultado e Salvamento
         const totalPessoas = Object.keys(pontos).length;
 
         if (totalPessoas > 0) {
@@ -1154,7 +1024,7 @@ async function sincronizarPontos(msgTrigger, modo) {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
                 const docSnap = await getDoc(docRef);
                 let currentData = docSnap.exists() ? docSnap.data() : {};
-                let manualData = {}; // RESET: Sobrescreve dados antigos
+                let manualData = {}; 
 
                 for (const [id, dados] of Object.entries(pontos)) {
                     manualData[id] = {
@@ -1163,7 +1033,6 @@ async function sincronizarPontos(msgTrigger, modo) {
                     };
                 }
 
-                // 1. Identificar Boosters SEPARADAMENTE
                 let boostersData = {};
                 try {
                     const roleBooster = guild.roles.cache.get(CONFIG.BOOSTER_ROLE_ID);
@@ -1176,19 +1045,11 @@ async function sincronizarPontos(msgTrigger, modo) {
 
                 await updateDoc(docRef, { manualData, boostersData });
 
-                // --- AÇÃO: PERGUNTAR PREMIAÇÃO TOP RECRUTADOR (Manual) ---
                 if (guild) {
-                    // Como msgTrigger não é interaction, precisamos adaptar ou responder simples
-                    // Para comandos de texto, vamos enviar uma mensagem com botões também
-                    // Criando um wrapper simples, mas msgTrigger.channel.send retorna message, que aceita componentes
-
-                    // Simplificação: Para comando de TEXTO (!), vamos apenas AVISAR os vencedores e pedir para rodar o slash command se quiser premiar?
-                    // OU, implementar a lógica de botão na mensagem de texto.
-                    // Vamos tentar implementar botão na mensagem de texto.
 
                     try {
                         const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-                        // 1. Calcula
+                        
                         let maxRecruits = 0;
                         for (const data of Object.values(pontos)) { if (data.recruit > maxRecruits) maxRecruits = data.recruit; }
 
@@ -1244,13 +1105,10 @@ async function sincronizarPontos(msgTrigger, modo) {
     }
 }
 
-// Wrapper para uso manual (message object)
 async function processarExcel(message, url = null) {
     if (!url) url = message.attachments.first().url;
     await processarExcelUrl(url, message.channel);
 
-    // Após processar a planilha, sincroniza donosData com o site
-    // (Mesmo comportamento do /atualizar, mas só a parte do Firebase)
     try {
         const guild = await client.guilds.fetch(CONFIG.MAIN_GUILD_ID);
         if (guild) {
@@ -1275,13 +1133,9 @@ async function processarExcel(message, url = null) {
     }
 }
 
-// ============================================
-// FUNÇÃO: PROCESSAR LOG VENDAS (TEMPO REAL)
-// ============================================
 async function processarLogVendas(message) {
     console.log("🔄 [DEBUG] Entrou em processarLogVendas()");
 
-    // Só processa se message não for parcial (garante conteúdo)
     if (message.partial) {
         try {
             console.log("   -> Mensagem parcial, fazendo fetch...");
@@ -1292,10 +1146,8 @@ async function processarLogVendas(message) {
         }
     }
 
-    // CONTEÚDO UNIFICADO (Texto + Embeds)
     let content = message.content || "";
 
-    // Se tiver Embeds, concatena descrição e campos para buscar o texto
     if (message.embeds.length > 0) {
         console.log("   -> Embed detectado. Extraindo...");
         const emb = message.embeds[0];
@@ -1303,32 +1155,20 @@ async function processarLogVendas(message) {
         if (emb.fields) emb.fields.forEach(f => content += " " + f.name + " " + f.value);
     }
 
-    console.log(`   -> Conteúdo FINAL para análise: "${content.substring(0, 100)}..."`); // Ver o início
+    console.log(`   -> Conteúdo FINAL para análise: "${content.substring(0, 100)}..."`); 
 
-
-    // 1. Reset Automático
     if (content.toLowerCase().includes('zerou o baú')) {
         console.log("♻️ [LOG VENDAS] Detectado 'Zerou o baú'. Resetando rawData...");
         try {
             const appId = 'default-app-id';
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
-            // Zera rawData mas mantém estrutura se quiser
+            
             await updateDoc(docRef, { rawData: "", updatedAt: new Date().toISOString() });
             message.react('♻️');
         } catch (e) { console.error(e); }
         return;
     }
 
-    // 2. Parser de Venda
-    // (Verificação de Status já feita no Listener, podemos pular ou logar apenas)
-    // const checks = [':check~2:', '✅', 'Venda Verificada', 'Verificado por', 'Aprovado'];
-    // if (!checks.some(t => content.includes(t))) {
-    //     // console.log("⚠️ [DEBUG] Ignorado: msg sem verificação.");
-    //     return;
-    // }
-
-    // Verifica Palavras-Chave (Mecânico + Quantidade)
-    // Adicionado 'â' para pegar "Mecânico" corretamente
     const hasMec = content.match(/Mec[aáâ]nico/i);
     const hasQtd = content.match(/(?:Quantidade|Kits)/i);
 
@@ -1341,11 +1181,9 @@ async function processarLogVendas(message) {
     }
 
     try {
-        // REGEX ULTRA-FLEXÍVEL
-        // Procura "Mecânico" (com qualquer acento), ignora tudo até a menção.
+
         const mecanicoMatch = content.match(/Mec[aáâ]nico.*?<@!?(\d+)>/is);
 
-        // Procura "Quantidade" ou "Kits", ignora qualquer coisa, e pega o número.
         const kitsMatch = content.match(/(?:Quantidade|Kits).*?(\d+)/is);
 
         if (!mecanicoMatch) console.log("❌ [DEBUG] Falha Regex MECÂNICO. Texto procurado: 'Mecânico...<@ID>'");
@@ -1359,7 +1197,6 @@ async function processarLogVendas(message) {
         const userId = mecanicoMatch[1];
         const kitsVendidos = parseInt(kitsMatch[1]);
 
-        // Pega nome do cache para exibir bonito no log
         let userName = userId;
         try {
             const member = await message.guild.members.fetch(userId);
@@ -1368,7 +1205,6 @@ async function processarLogVendas(message) {
 
         console.log(`💰 [LOG VENDAS] Venda APROVADA: ${userName} (+${kitsVendidos} kits)`);
 
-        // 3. Atualizar Firebase
         const appId = 'default-app-id';
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
 
@@ -1390,12 +1226,12 @@ async function processarLogVendas(message) {
             const currentKits = parseInt(record[4]) || 0;
             record[4] = String(currentKits + kitsVendidos);
         } else {
-            // Cria Novo se não existir (Ex: novato que vendeu antes de sair relatório)
+            
             record = [
-                userName, // Tenta usar o nome do Discord
+                userName, 
                 userId,
-                '',       // FiveM ID desconhecido
-                '0',      // Horas 0
+                '',       
+                '0',      
                 String(kitsVendidos),
                 '', '', ''
             ];
@@ -1411,22 +1247,19 @@ async function processarLogVendas(message) {
             updatedAt: new Date().toISOString()
         });
 
-        await message.react('💸'); // Confirmação visual
+        await message.react('💸'); 
 
     } catch (e) {
         console.error("❌ Erro processar venda:", e);
     }
 }
 
-// Listener para EDIÇÃO (Quando muda de status Pendente -> Aprovado)
-// Listener para EDIÇÃO (Quando muda de status Pendente -> Aprovado)
 client.on('messageUpdate', async (oldMessage, newMessage) => {
     if (newMessage.channel.id === CONFIG.SALES_LOG_CHANNEL_ID) {
 
-        // --- LÓGICA DE EXTRAÇÃO DE CONTEÚDO (Texto ou Embed) ---
         const getContent = (msg) => {
             let txt = msg.content || "";
-            // Se tiver Embeds, concatena descrição e campos para buscar o texto
+            
             if (msg.embeds.length > 0) {
                 const emb = msg.embeds[0];
                 txt += " " + (emb.description || "");
@@ -1438,12 +1271,8 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
         const oldContent = oldMessage.partial ? '' : getContent(oldMessage);
         const newContent = getContent(newMessage);
 
-        // DEBUG: Ver o que mudou (SEM TRUNCAR)
         console.log(`📝 [DEBUG EDIT] Msg Editada!`);
-        // console.log(`   Conteúdo Completo: ${newContent}`); // Descomente se precisar ver tudo
 
-        // VERIFICAÇÃO MAIS ROBUSTA
-        // Aceita: Emoji :check~2:, Emoji ✅, ou Texto "Venda Verificada" / "Verificado por"
         const checks = [':check~2:', '✅', 'Venda Verificada', 'Verificado por', 'Aprovado'];
 
         const isVerifiedNow = checks.some(t => newContent.includes(t));
@@ -1454,7 +1283,7 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
             await processarLogVendas(newMessage);
         } else {
             if (!isVerifiedNow) console.log(`   -> Ainda não verificado. (Buscou por: ${checks.join(', ')})`);
-            // Debug extra: Mostra o trecho do status se encontrar
+            
             if (newContent.includes('Status')) {
                 const statusPart = newContent.split('Status')[1]?.substring(0, 50);
                 console.log(`   -> Trecho 'Status' encontrado: ...${statusPart}...`);
@@ -1463,15 +1292,13 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
     }
 });
 
-// NOVO: Listener para CRIAR MENSAGEM (Caso a mensagem já nasça com verificado ou para Debug)
 client.on('messageCreate', async message => {
-    // Debug: Ver o que está chegando no canal CONFIGURADO
+    
     if (message.channel.id === CONFIG.SALES_LOG_CHANNEL_ID) {
         console.log(`📨 [DEBUG] Nova mensagem recebida!`);
         console.log(`   Conteúdo: "${message.content}"`);
         console.log(`   Verificado? ${message.content.includes(':check~2:') || message.content.includes('✅')}`);
 
-        // Se a mensagem já tiver "Verificado" no texto
         if (message.content.includes(':check~2:') || message.content.includes('✅')) {
             console.log("📝 [LOG VENDAS] Detectado emoji de verificação. Tentando processar...");
             await processarLogVendas(message);
@@ -1480,10 +1307,6 @@ client.on('messageCreate', async message => {
         }
     }
 });
-
-// ============================================
-
-// --- FUNCIONALIDADE: MENSAGENS PROGRAMADAS ---
 
 function parseInterval(str) {
     if (!str) return null;
@@ -1498,44 +1321,29 @@ function parseInterval(str) {
     return null;
 }
 
-
-// --- HELPER DE FORMATAÇÃO DE TEXTO INTELIGENTE (ASYNC & ROBUST) ---
 async function formatarMensagem(guild, content) {
     if (!guild || !content) return content;
 
-    // 1. Garante Cache Atualizado
     await guild.roles.fetch().catch(() => { });
     await guild.channels.fetch().catch(() => { });
     await guild.emojis.fetch().catch(() => { });
 
     let formatted = content;
 
-    // 2. CARGOS
-    // Ordenar por tamanho do nome DECRESCENTE para dar match no nome mais específico primeiro
-    // Ex: "Estagiário(a)" vem antes de "Estagiário"
     const roles = Array.from(guild.roles.cache.values()).sort((a, b) => b.name.length - a.name.length);
 
     for (const role of roles) {
         const name = role.name;
-        // Escapar caracteres especiais para Regex (ex: parenteses, colchetes, pipes)
+        
         const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-        // Match: 
-        // @Nome
-        // @| Nome
-        // @|Nome
-        // Flag 'gi' (Global, Case Insensitive)
-        // \s* aceita 0 ou mais espaços entre @| e Nome
         const pattern = new RegExp(`@\\|?\\s*${escaped}`, 'gi');
 
-        // Se encontrar, substitui pelo ID
-        // Só substitui se o texto ainda tiver o padrão (evita re-substituição se nomes forem subconjuntos confusos, mas a ordenação ajuda)
         if (pattern.test(formatted)) {
             formatted = formatted.replace(pattern, role.toString());
         }
     }
 
-    // 3. CANAIS
     const channels = Array.from(guild.channels.cache.values()).sort((a, b) => b.name.length - a.name.length);
     for (const channel of channels) {
         if (channel.type !== 0 && channel.type !== 5) continue;
@@ -1548,20 +1356,15 @@ async function formatarMensagem(guild, content) {
         }
     }
 
-    // 4. EMOJIS
-    // Encontrar tudo que parece emoji :texto:
-    // Aceita letras, numeros, _, -, ~, .
     const emojiRegex = /:([a-zA-Z0-9_~\-\.]+):/g;
     const emojis = guild.emojis.cache;
 
-    // Replace suporta função callback
     formatted = formatted.replace(emojiRegex, (match, rawName) => {
-        // Tenta achar o emoji exato
+        
         let emoji = emojis.find(e => e.name === rawName);
 
-        // Se não achou exato, tenta "Fuzzy"
         if (!emoji) {
-            // Remove tudo que não é letra/numero para comparar
+            
             const cleanRaw = rawName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
             emoji = emojis.find(e => {
                 const cleanName = e.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -1588,18 +1391,16 @@ async function checkScheduledMessages() {
 
             if (!channelId || !content || !intervalMs) return;
 
-            // Se nunca rodou (lastRun=0) ou já passou o tempo
             if (!lastRun || (now - lastRun >= intervalMs)) {
                 try {
                     const channel = client.channels.cache.get(channelId) || await client.channels.fetch(channelId);
                     if (channel) {
-                        // FORMATAÇÃO INTELIGENTE (Com Await)
+                        
                         const finalText = await formatarMensagem(channel.guild, content);
 
                         await channel.send(finalText);
                         console.log(`⏰ [MSG PROGRAMADA] Enviada para ${channel.name} (ID: ${docSnap.id})`);
 
-                        // Atualiza lastRun
                         await updateDoc(doc(db, 'scheduled_messages', docSnap.id), {
                             lastRun: now
                         });
@@ -1620,9 +1421,8 @@ async function checkScheduledMessages() {
 client.once('ready', async () => {
     console.log(`✅ Bot online como: ${client.user.tag}`);
 
-    // 1. Configura Hierarquia (Servidor Principal)
     try {
-        // Busca explícita pelo ID do servidor
+        
         const guild = await client.guilds.fetch(CONFIG.MAIN_GUILD_ID);
         if (guild) {
             console.log(`🏠 Servidor Principal conectado: ${guild.name}`);
@@ -1633,7 +1433,6 @@ client.once('ready', async () => {
         console.error(`❌ [ERRO CRÍTICO] Servidor Principal ID ${CONFIG.MAIN_GUILD_ID} não encontrado! O painel de hierarquia não funcionará.`);
     }
 
-    // 2. Configura Relatórios (Monitoramento Global)
     const channelRelatorio = client.channels.cache.get(CONFIG.REPORT_CHANNEL_ID);
     if (channelRelatorio) {
         console.log(`📊 Canal de Relatórios monitorado: ${channelRelatorio.name}`);
@@ -1644,13 +1443,11 @@ client.once('ready', async () => {
         console.warn(`   Verifique se o bot tem permissão de ver o canal e se o ID está correto.`);
     }
 
-    // 3. Inicia Loop de Mensagens Programadas
     console.log("⏰ Iniciando monitoramento de mensagens programadas...");
-    setInterval(() => checkScheduledMessages(), 60000); // Checa a cada 1 minuto
-    checkScheduledMessages(); // Roda 1x ao iniciar
+    setInterval(() => checkScheduledMessages(), 60000); 
+    checkScheduledMessages(); 
 });
 
-// --- COMANDOS SLASH ---
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -1669,8 +1466,6 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.commandName === 'verificar-semanaatual' || interaction.commandName === 'verificar-semanapassada') {
-        // Permissão controlada via Integração do Discord
-        // const isAllowed = ... (REMOVED)
 
         const isPast = (interaction.commandName === 'verificar-semanapassada');
         await sincronizarPontosNovo(interaction, isPast ? 'PASSADA' : 'ATUAL');
@@ -1683,7 +1478,6 @@ client.on('interactionCreate', async interaction => {
             const appId = 'default-app-id';
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
 
-            // Lê os dados atuais
             const docSnap = await getDoc(docRef);
             if (!docSnap.exists()) {
                 return interaction.editReply('⚠️ **Aviso:** Nenhum dado encontrado para limpar.');
@@ -1696,19 +1490,17 @@ client.on('interactionCreate', async interaction => {
                 return interaction.editReply('⚠️ **Aviso:** O banco já está vazio.');
             }
 
-            // Processa linha por linha e zera APENAS a coluna de Kits (índice 4)
             const lines = oldRawData.split('\n');
             const newLines = lines.map(line => {
                 const parts = line.split('\t');
                 if (parts.length >= 5) {
-                    parts[4] = '0'; // Zera apenas Kits (mantém Nome, ID, FiveM, Horas, Promoção, etc)
+                    parts[4] = '0'; 
                 }
                 return parts.join('\t');
             });
 
             const newRawData = newLines.join('\n');
 
-            // Salva de volta
             await updateDoc(docRef, { rawData: newRawData, updatedAt: new Date().toISOString() });
 
             await interaction.editReply('✅ **Kits Zerados!**\n📦 Todos os kits foram resetados para 0.\n✅ Nomes, horas e outros dados foram **preservados**.\n\n💡 O próximo log de venda começará a contar do zero.');
@@ -1730,7 +1522,6 @@ client.on('interactionCreate', async interaction => {
             const appId = 'default-app-id';
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
 
-            // 1. Ler dados atuais
             const docSnap = await getDoc(docRef);
             let currentData = docSnap.exists() ? docSnap.data() : {};
             let rawData = currentData.rawData || "";
@@ -1748,37 +1539,33 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            // 2. Atualizar ou Criar Registro
-            // Formato array: [Discord, ID, FiveMID, Horas, Kits, ???, ???, Promoção]
-            // Vamos tentar manter compatível
             const userId = targetUser.id;
             let record = consolidatedMap.get(userId);
 
             if (record) {
-                // Atualiza
+                
                 const prevKits = parseInt(record[4]) || 0;
                 const newKits = prevKits + kits;
                 console.log(`[MANUAL] Atualizando ${targetUser.username}: Kits ${record[4]} -> ${newKits} (+${kits})`);
-                record[4] = String(newKits); // Atualiza kits
-                if (horas > 0) record[3] = String(horas); // Atualiza horas se informado
+                record[4] = String(newKits); 
+                if (horas > 0) record[3] = String(horas); 
                 if (idCidade > 0) record[2] = String(idCidade);
             } else {
-                // Cria Novo
+                
                 console.log(`[MANUAL] Criando novo registro para ${targetUser.username}`);
                 record = [
-                    targetUser.username, // Nome Discord
-                    userId,              // ID Discord
-                    String(idCidade),    // ID InGame
-                    String(horas),       // Horas
-                    String(kits),        // Kits
-                    '',                  // (Vazio 5)
-                    '',                  // (Vazio 6)
-                    ''                   // Promoção
+                    targetUser.username, 
+                    userId,              
+                    String(idCidade),    
+                    String(horas),       
+                    String(kits),        
+                    '',                  
+                    '',                  
+                    ''                   
                 ];
             }
             consolidatedMap.set(userId, record);
 
-            // 3. Salvar
             const finalRows = Array.from(consolidatedMap.values());
             const newRawText = finalRows.map(row => row.join('\t')).join('\n');
 
@@ -1796,7 +1583,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // COMANDO REMOVER-VENDAS
     if (interaction.commandName === 'remover-vendas') {
         await interaction.deferReply({ ephemeral: true });
 
@@ -1811,7 +1597,6 @@ client.on('interactionCreate', async interaction => {
             const appId = 'default-app-id';
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'redline_storage', 'main');
 
-            // 1. Ler dados atuais
             const docSnap = await getDoc(docRef);
             let currentData = docSnap.exists() ? docSnap.data() : {};
             let rawData = currentData.rawData || '';
@@ -1827,7 +1612,6 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            // 2. Verificar se o membro existe no registro
             const userId = targetUser.id;
             let record = consolidatedMap.get(userId);
 
@@ -1836,13 +1620,12 @@ client.on('interactionCreate', async interaction => {
             }
 
             const kitsAntes = parseInt(record[4]) || 0;
-            const kitsDepois = Math.max(0, kitsAntes - kitsRemover); // Nunca vai abaixo de 0
+            const kitsDepois = Math.max(0, kitsAntes - kitsRemover); 
 
             console.log(`[MANUAL REMOÇÃO] ${targetUser.username}: Kits ${kitsAntes} -> ${kitsDepois} (Removidos: ${kitsRemover})`);
             record[4] = String(kitsDepois);
             consolidatedMap.set(userId, record);
 
-            // 3. Salvar
             const finalRows = Array.from(consolidatedMap.values());
             const newRawText = finalRows.map(row => row.join('\t')).join('\n');
 
@@ -1858,7 +1641,6 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.editReply(`✅ **Sucesso!** Kits de ${targetUser} atualizados.\n📦 **Kits antes:** ${kitsAntes}\n➖ **Removidos:** ${kitsRemover}\n📦 **Kits agora:** ${kitsDepois}${aviso}\n\nO site refletirá essa mudança imediatamente.`);
 
-            // Log no DM do admin
             sendLogDm(`📦 **[Remoção Manual de Kits]**\nAdmin: <@${interaction.user.id}>\nMembro: <@${userId}>\nKits antes: ${kitsAntes} → Agora: ${kitsDepois} (Removidos: ${kitsRemover})`);
 
         } catch (error) {
@@ -1867,8 +1649,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-
-    // COMANDO SETAR-BAÚ
     if (interaction.commandName === 'setar-bau') {
         await interaction.deferReply({ ephemeral: true });
 
@@ -1892,7 +1672,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // COMANDO STATUS-VENDAS
     if (interaction.commandName === 'status-vendas') {
         await interaction.deferReply({ ephemeral: false });
 
@@ -1909,7 +1688,6 @@ client.on('interactionCreate', async interaction => {
             const totalBau = currentData.totalBau || 0;
             const rawData = currentData.rawData || '';
 
-            // Soma todos os kits vendidos e monta top vendedores
             const vendedores = [];
             if (rawData) {
                 const lines = rawData.split('\n');
@@ -1926,23 +1704,19 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            // Total vendido
             const totalVendido = vendedores.reduce((acc, v) => acc + v.kits, 0);
             const totalFaltando = Math.max(0, totalBau - totalVendido);
             const porcentagem = totalBau > 0 ? Math.min(100, Math.round((totalVendido / totalBau) * 100)) : 0;
 
-            // Barra de progresso (20 blocos)
             const blocosTotal = 20;
             const blocosPreenchidos = Math.round((porcentagem / 100) * blocosTotal);
             const barra = '█'.repeat(blocosPreenchidos) + '░'.repeat(blocosTotal - blocosPreenchidos);
 
-            // Status emoji
             let statusEmoji = '🟡';
             if (porcentagem >= 100) statusEmoji = '✅';
             else if (porcentagem >= 75) statusEmoji = '🟠';
             else if (porcentagem < 25 && totalBau > 0) statusEmoji = '🔴';
 
-            // Top 5 vendedores
             vendedores.sort((a, b) => b.kits - a.kits);
             const top3 = vendedores.slice(0, 3);
             const topTexto = top3.length > 0
@@ -1978,7 +1752,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // COMANDO PAINEL-MENSAGENS
     if (interaction.commandName === 'painel-mensagens') {
 
         const embed = new EmbedBuilder()
@@ -2001,14 +1774,11 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// --- INTERAÇÕES DE COMPONENTES (BOTÕES, MENUS, MODAIS) ---
 client.on('interactionCreate', async interaction => {
-    // 1. SELECT MENU: ESCOLHA DE CANAL (Passo 1 de Adicionar)
+    
     if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel_add') {
-        const channelId = interaction.values[0]; // Pega o primeiro canal selecionado
+        const channelId = interaction.values[0]; 
 
-        // Abre o MODAL imediatamente. Para passar o channelId para o Modal, vamos usar o ID customizado do modal
-        // "modal_add_msg_<CHANNEL_ID>"
         const modal = new ModalBuilder()
             .setCustomId(`modal_add_msg_${channelId}`)
             .setTitle('Nova Mensagem Programada');
@@ -2035,11 +1805,8 @@ client.on('interactionCreate', async interaction => {
         await interaction.showModal(modal);
     }
 
-    // 2. MODAL SUBMIT: SALVAR NOVA MENSAGEM (SEM FORMATAR - SALVA RAW PARA EDIÇÃO)
-    // A formatação acontece APENAS na hora do envio (checkScheduledMessages) para garantir que
-    // se o cargo mudar de nome ou ID (raro), ou se editar, a gente reprocessa na hora.
     if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_add_msg_')) {
-        const channelId = interaction.customId.split('_')[3]; // modal_add_msg_123456...
+        const channelId = interaction.customId.split('_')[3]; 
         const intervalStr = interaction.fields.getTextInputValue('input_interval');
         const content = interaction.fields.getTextInputValue('input_content');
 
@@ -2064,9 +1831,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // --- NOVA FUNCIONALIDADE: ENVIAR AGORA (IMEDIATO) ---
-
-    // 1. SELECT MENU: ESCOLHA DE CANAL (Enviar Agora)
     if (interaction.isChannelSelectMenu() && interaction.customId === 'select_channel_send_now') {
         const channelId = interaction.values[0];
         const modal = new ModalBuilder()
@@ -2085,7 +1849,6 @@ client.on('interactionCreate', async interaction => {
         await interaction.showModal(modal);
     }
 
-    // 2. MODAL SUBMIT: ENVIAR
     if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_send_now_')) {
         const channelId = interaction.customId.split('_')[3];
         const content = interaction.fields.getTextInputValue('input_content_now');
@@ -2094,10 +1857,8 @@ client.on('interactionCreate', async interaction => {
             const channel = interaction.guild.channels.cache.get(channelId) || await interaction.guild.channels.fetch(channelId);
             if (!channel) return interaction.reply({ content: '❌ Canal não encontrado.', ephemeral: true });
 
-            // APICAR FORMATAÇÃO INTELIGENTE AQUI TAMBÉM (Com Await)
             const finalText = await formatarMensagem(interaction.guild, content);
 
-            // Tenta enviar. Se falhar por erro de permissão ou formato, avisa.
             await channel.send(finalText);
             return interaction.reply({ content: `✅ **Mensagem Enviada!**\nConfira em: ${channel}`, ephemeral: true });
         } catch (e) {
@@ -2106,7 +1867,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // 3. SELECT MENU: ESCOLHER MENSAGEM PARA GERENCIAR
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_msg_manage') {
         const msgId = interaction.values[0];
 
@@ -2127,7 +1887,7 @@ client.on('interactionCreate', async interaction => {
                     { name: '🆔 ID', value: msgId, inline: true },
                     { name: '📢 Canal', value: `<#${data.channelId}>`, inline: true },
                     { name: '⏰ Intervalo', value: data.intervalStr, inline: true },
-                    { name: '💬 Conteúdo', value: data.content.substring(0, 1024) } // Discord Field limit
+                    { name: '💬 Conteúdo', value: data.content.substring(0, 1024) } 
                 );
 
             const row = new ActionRowBuilder().addComponents(
@@ -2136,7 +1896,6 @@ client.on('interactionCreate', async interaction => {
                 new ButtonBuilder().setCustomId(`btn_back`).setLabel('🔙 Voltar').setStyle(ButtonStyle.Secondary)
             );
 
-            // Atualiza a mensagem onde estava o menu
             await interaction.update({ content: null, embeds: [embed], components: [row] });
 
         } catch (e) {
@@ -2144,11 +1903,9 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // 4. BOTÕES GERAIS
     if (interaction.isButton()) {
         const id = interaction.customId;
 
-        // --- BOTÃO: ADICIONAR (Abre Menu de Canal) ---
         if (id === 'btn_panel_add') {
             const row = new ActionRowBuilder().addComponents(
                 new ChannelSelectMenuBuilder()
@@ -2159,7 +1916,6 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: '📅 **Agendar:** Escolha o canal de destino:', components: [row], ephemeral: true });
         }
 
-        // --- BOTÃO: ENVIAR AGORA (Abre Menu de Canal) ---
         if (id === 'btn_panel_send_now') {
             const row = new ActionRowBuilder().addComponents(
                 new ChannelSelectMenuBuilder()
@@ -2170,10 +1926,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: '📢 **Envio Imediato:** Escolha o canal de destino:', components: [row], ephemeral: true });
         }
 
-        // --- BOTÃO: LISTAR/GERENCIAR (Abre Menu de Lista) ---
         if (id === 'btn_panel_list' || id === 'btn_back') {
-            // Se for back, precisamos 'update', se for novo clique, 'reply'? 
-            // Para simplificar, sempre reply ephemeral ou update se der.
 
             const snapshot = await getDocs(collection(db, 'scheduled_messages'));
             if (snapshot.empty) {
@@ -2190,11 +1943,11 @@ client.on('interactionCreate', async interaction => {
             snapshot.forEach(docSnap => {
                 const d = docSnap.data();
                 const label = `${d.intervalStr} em #${interaction.guild.channels.cache.get(d.channelId)?.name || d.channelId}`;
-                // Trunca o content para descrição
+                
                 const description = d.content.length > 50 ? d.content.substring(0, 47) + '...' : d.content;
 
                 menu.addOptions({
-                    label: label.substring(0, 100), // Max label length
+                    label: label.substring(0, 100), 
                     description: description.substring(0, 100),
                     value: docSnap.id
                 });
@@ -2207,7 +1960,6 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ ...msgPayload, ephemeral: true });
         }
 
-        // --- BOTÃO: APAGAR ---
         if (id.startsWith('btn_delete_')) {
             const msgId = id.replace('btn_delete_', '');
             try {
@@ -2218,12 +1970,9 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
-        // --- BOTÃO: EDITAR (Abre Modal) ---
         if (id.startsWith('btn_edit_')) {
             const msgId = id.replace('btn_edit_', '');
 
-            // Busca dados atuais para pré-preencher (Se possível, Discord não suporta pre-fill dinâmico 100% fácil sem gambiarra, 
-            // mas TextInputBuilder aceita setValue. Precisamos buscar o doc antes.)
             const docSnap = await getDoc(doc(db, 'scheduled_messages', msgId));
             if (!docSnap.exists()) return interaction.reply({ content: '❌ Mensagem não existe mais.', ephemeral: true });
             const data = docSnap.data();
@@ -2251,7 +2000,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // 5. MODAL SUBMIT: SALVAR EDIÇÃO
     if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_edit_msg_')) {
         const msgId = interaction.customId.replace('modal_edit_msg_', '');
         const newInterval = interaction.fields.getTextInputValue('input_edit_interval');
@@ -2275,8 +2023,6 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-
-// --- TRATAMENTO DE ERROS GLOBAIS (EVITA CRASH) ---
 process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️ [Anti-Crash] Rejeição não tratada:', reason);
 });
